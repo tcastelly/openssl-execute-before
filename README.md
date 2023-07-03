@@ -3,5 +3,5 @@
 Execute a command before ssl expires.
 
 ```bash
-./execute before=2d my-file.sh
+openssl-execute before=2d ca=/cert/ca_certificate.pem my-file.sh
 ```

@@ -1,7 +1,7 @@
 use chrono::offset::LocalResult;
 use chrono::prelude::*;
 use regex::Regex;
-use std::process;
+use std::{env, process};
 
 fn get_month_num(month: &str) -> Option<u32> {
     [
@@ -35,7 +35,7 @@ fn get_expiration_cert() -> String {
 
 fn str_to_dt(dt: &str) -> LocalResult<DateTime<Utc>> {
     let re = Regex::new(
-        r"notAfter=([A-Z][a-z]{2}) ([0-9 ]{1,2}) ([0-9]{2}):([0-9]{2}):([0-9]{2}) ([0-9]{4}) GMT$",
+        r"^notAfter=([A-Z][a-z]{2}) ([0-9 ]{1,2}) ([0-9]{2}):([0-9]{2}):([0-9]{2}) ([0-9]{4}) GMT$",
     )
     .unwrap();
 
@@ -61,13 +61,56 @@ fn str_to_dt(dt: &str) -> LocalResult<DateTime<Utc>> {
     Utc.with_ymd_and_hms(year, month, day, hour, min, sec)
 }
 
+#[derive(Debug)]
+struct Cmd {
+    // number of days
+    before: u32,
+    ca: String,
+    cmd: String,
+}
+
+impl Cmd {
+    fn new() -> Cmd {
+        Cmd {
+            before: 0,
+            ca: "".to_string(),
+            cmd: "".to_string(),
+        }
+    }
+}
+
 fn main() {
+    let before_re = Regex::new(r"^before=([0-9])d$").unwrap();
+
+    let ca_re = Regex::new(r"^ca=(.*)+$").unwrap();
+
+    let cmd: Cmd = env::args().skip(1).fold(Cmd::new(), |cur, next| {
+        let caps_opt = before_re.captures(&next);
+
+        if let Some(before_cap) = caps_opt {
+            if let Some(before) = before_cap.get(1) {
+                let before_str = before.as_str();
+                let before_nb = before_str.parse::<u32>().unwrap();
+                println!("before {}", before_nb);
+                Cmd {
+                    before: before_nb,
+                    ..Cmd::new()
+                }
+            } else {
+                Cmd::new()
+            }
+        } else {
+            Cmd { ..Cmd::new() }
+        }
+    });
+
+    println!("{:?}", cmd);
     // from command line retrieve the date to launch a command
     // e.g before=2d
 
     // retrieve the real expirated date with openssl
 
-    // retrieve the command to execute
+    // retrieve the command to openssl-execute
 
     let output_str = get_expiration_cert();
     println!("capture: {:?}", output_str);
