@@ -58,17 +58,17 @@ fn get_month_num(month: &str) -> Option<u32> {
     })
 }
 
-fn get_expiration_cert() -> String {
-    let outout = process::Command::new("openssl")
+fn get_expiration_cert(ca: &str) -> String {
+    let output = process::Command::new("openssl")
         .arg("x509")
         .arg("-enddate")
         .arg("-noout")
         .arg("--in")
-        .arg("/home/tcy/documents/dev/workspaces/core/broadcast-poc/rabbitmq/broadcast-producer/cert/ca_certificate.pem")
+        .arg(ca)
         .output()
         .expect("failed to retrieve the expiration date of the `ca_certificate.pem` file");
 
-    let output_str = String::from_utf8(outout.stdout).unwrap();
+    let output_str = String::from_utf8(output.stdout).unwrap();
 
     output_str.trim().to_string()
 }
@@ -180,29 +180,28 @@ fn try_launch_cmd(cmd: &Cmd, diff_num_days: i64) {
 }
 
 fn main() -> Result<(), String> {
-    let cmd = parse_cmd(env::args().collect::<Vec<String>>())?;
+    let cmd = parse_cmd(env::args().collect())?;
 
-    let output_str = get_expiration_cert();
+    let output_str = get_expiration_cert(&cmd.ca);
 
-    let one_day = 60 * 60 * 24;
+    match &output_str[..] {
+        "" => Err("invalid certificate expiration date".to_string()),
+        output_str => {
+            let dt = str_to_dt(output_str);
 
-    if !output_str.is_empty() {
-        let dt = str_to_dt(&output_str);
+            // calculate number of day between now and the expiration date
+            let diff_num_days = (dt.unwrap() - Utc::now()).num_days();
 
-        // calculate number of day between now and the expiration date
-        let diff = dt.unwrap() - Utc::now();
-
-        let diff_num_days = diff.num_days();
-
-        println!("ca will expire in {} days", diff_num_days);
-        try_launch_cmd(&cmd, diff_num_days);
-        loop {
-            println!("next try in one day");
-            thread::sleep(time::Duration::from_secs(one_day));
-
+            println!("ca will expire in {} days", diff_num_days);
             try_launch_cmd(&cmd, diff_num_days);
+
+            let one_day = 60 * 60 * 24;
+            loop {
+                println!("next try in one day");
+                thread::sleep(time::Duration::from_secs(one_day));
+
+                try_launch_cmd(&cmd, diff_num_days);
+            }
         }
     }
-
-    Ok(())
 }
