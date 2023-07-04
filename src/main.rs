@@ -2,6 +2,8 @@ use chrono::offset::LocalResult;
 use chrono::prelude::*;
 use chrono::Utc;
 use regex::Regex;
+use std::thread;
+use std::time;
 use std::{env, process};
 
 #[derive(Debug, Clone)]
@@ -164,10 +166,22 @@ fn execute_external_cmd(cmd: String) {
         .expect("impossible to execute the file");
 }
 
+/// launch the command only once before expiration day
+fn try_launch_cmd(cmd: &Cmd, diff_num_days: i64) {
+    if cmd.before as i64 >= diff_num_days {
+        println!("{} days exceeded, execute the command", diff_num_days);
+        execute_external_cmd(cmd.cmd.to_string());
+    } else {
+        println!("launch the command {} days before expiration", cmd.before);
+    }
+}
+
 fn main() -> Result<(), String> {
     let cmd = parse_cmd(env::args().collect::<Vec<String>>())?;
 
     let output_str = get_expiration_cert();
+
+    let one_day = 60 * 60 * 24;
 
     if !output_str.is_empty() {
         let dt = str_to_dt(&output_str);
@@ -178,11 +192,11 @@ fn main() -> Result<(), String> {
         let diff_num_days = diff.num_days();
 
         println!("expire in {} days", diff_num_days);
-        if cmd.before as i64 >= diff_num_days {
-            println!("{} days exceeded, execute the command", diff_num_days);
-            execute_external_cmd(cmd.cmd);
-        } else {
-            println!("launch the command {} days before expiration", cmd.before);
+        try_launch_cmd(&cmd, diff_num_days);
+        loop {
+            thread::sleep(time::Duration::from_secs(one_day));
+
+            try_launch_cmd(&cmd, diff_num_days);
         }
     }
 
