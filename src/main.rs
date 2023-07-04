@@ -3,24 +3,24 @@ use chrono::prelude::*;
 use regex::Regex;
 use std::{env, process};
 
-#[derive(Debug, Clone, Copy)]
-struct Cmd<'a> {
+#[derive(Debug, Clone)]
+struct Cmd {
     // number of days
     before: u32,
-    ca: &'a str,
-    cmd: &'a str,
+    ca: String,
+    cmd: String,
 }
 
-impl<'a> Cmd<'a> {
-    fn new() -> Cmd<'a> {
+impl Cmd {
+    fn new(cmd: String) -> Cmd {
         Cmd {
             before: 0,
-            ca: "",
-            cmd: "",
+            ca: "".to_string(),
+            cmd,
         }
     }
 
-    fn merge(self, other: Cmd<'a>) -> Self {
+    fn merge(self, other: Cmd) -> Self {
         Self {
             before: match self.before {
                 0 => other.before,
@@ -98,8 +98,8 @@ fn str_to_dt(dt: &str) -> LocalResult<DateTime<Utc>> {
     Utc.with_ymd_and_hms(year, month, day, hour, min, sec)
 }
 
-fn retrieve_first_match<'a, 'b>(reg: &'a Regex, arg: &'b str) -> Option<&'b str> {
-    let caps_opt = reg.captures(arg);
+fn retrieve_first_match(reg: &Regex, arg: String) -> Option<String> {
+    let caps_opt = reg.captures(&arg);
 
     let capt_opt = if let Some(before_cap) = caps_opt {
         before_cap.get(1)
@@ -107,58 +107,64 @@ fn retrieve_first_match<'a, 'b>(reg: &'a Regex, arg: &'b str) -> Option<&'b str>
         None
     };
 
-    if let Some(str) = capt_opt {
-        Some(str.as_str())
-    } else {
-        None
-    }
+    capt_opt.map(|str| str.as_str().to_string())
 }
 
-fn retrieve_before<'a, 'b>(cur_args: &'a Cmd<'b>, arg: &'a str) -> Cmd<'b> {
+/// return the number of day as u32
+/// e.g: before=2d
+fn retrieve_before(cur_args: Cmd, arg: String) -> Cmd {
     let before_re = Regex::new(r"^before=([0-9])d$").unwrap();
     let before_match_opt = retrieve_first_match(&before_re, arg);
 
     if let Some(before_str) = before_match_opt {
         Cmd {
             before: before_str.parse().unwrap(),
-            ..*cur_args
+            ..cur_args
         }
     } else {
-        Cmd { ..*cur_args }
+        cur_args
     }
 }
 
-fn retrieve_ca<'a, 'b>(cur_args: &'a Cmd<'b>, arg: &'a str) -> Cmd<'a> {
+/// retrieve the ca path
+/// e.g: ca=/cert/ca_certificate.pem
+fn retrieve_ca(cur_args: Cmd, arg: String) -> Cmd {
     let ca_re = Regex::new(r"^ca=(.*)+$").unwrap();
     let ca_match_opt = retrieve_first_match(&ca_re, arg);
 
     if let Some(ca) = ca_match_opt {
-        Cmd { ca, ..*cur_args }
+        Cmd { ca, ..cur_args }
     } else {
-        Cmd { ..*cur_args }
+        cur_args
     }
 }
 
-fn main() {
-    // from command line retrieve the date to launch a command
+/// retrieve Cmd with all fields
+fn parse_cmd(args: Vec<String>) -> Result<Cmd, String> {
+    let file_or_cmd = match args.as_slice() {
+        [.., last] => last.to_string(),
+        _ => return Err("a minimum of one parameter is required".to_string()),
+    };
 
-    let args = env::args().skip(1);
+    let cmd = args.into_iter().fold(Cmd::new(file_or_cmd), |cur, next| {
+        let with_before = retrieve_before(cur.clone(), next.clone());
+        let with_ca = retrieve_ca(cur, next);
 
-    let cmd: Cmd = args.fold(Cmd::new(), |cur, next| {
-        let with_before = retrieve_before(&cur, &next);
-        let with_ca = retrieve_ca(&cur, &next);
-
-        with_ca
-
-        // with_before.merge(with_ca)
+        with_before.merge(with_ca)
     });
 
-    // e.g before=2d
-    println!("{:?}", cmd);
+    Ok(cmd)
+}
 
-    // retrieve the real expirated date with openssl
+fn execute_external_cmd(cmd: String) {
+    process::Command::new(cmd)
+        .spawn()
+        .expect("impossible to execute the file");
+}
 
-    // retrieve the command to openssl-execute
+fn main() -> Result<(), String> {
+    let cmd = parse_cmd(env::args().collect::<Vec<String>>())?;
+    println!("cmd: {:?}", cmd);
 
     let output_str = get_expiration_cert();
     println!("capture: {:?}", output_str);
@@ -167,4 +173,8 @@ fn main() {
         let dt = str_to_dt(&output_str);
         println!("{:?}", dt);
     }
+
+    execute_external_cmd(cmd.cmd);
+
+    Ok(())
 }
