@@ -1,5 +1,6 @@
 use chrono::offset::LocalResult;
 use chrono::prelude::*;
+use chrono::Utc;
 use regex::Regex;
 use std::{env, process};
 
@@ -113,7 +114,7 @@ fn retrieve_first_match(reg: &Regex, arg: String) -> Option<String> {
 /// return the number of day as u32
 /// e.g: before=2d
 fn retrieve_before(cur_args: Cmd, arg: String) -> Cmd {
-    let before_re = Regex::new(r"^before=([0-9])d$").unwrap();
+    let before_re = Regex::new(r"^before=([0-9]+)d$").unwrap();
     let before_match_opt = retrieve_first_match(&before_re, arg);
 
     if let Some(before_str) = before_match_opt {
@@ -156,6 +157,7 @@ fn parse_cmd(args: Vec<String>) -> Result<Cmd, String> {
     Ok(cmd)
 }
 
+/// execute the external command
 fn execute_external_cmd(cmd: String) {
     process::Command::new(cmd)
         .spawn()
@@ -164,17 +166,25 @@ fn execute_external_cmd(cmd: String) {
 
 fn main() -> Result<(), String> {
     let cmd = parse_cmd(env::args().collect::<Vec<String>>())?;
-    println!("cmd: {:?}", cmd);
 
     let output_str = get_expiration_cert();
-    println!("capture: {:?}", output_str);
 
     if !output_str.is_empty() {
         let dt = str_to_dt(&output_str);
-        println!("{:?}", dt);
-    }
 
-    execute_external_cmd(cmd.cmd);
+        // calculate number of day between now and the expiration date
+        let diff = dt.unwrap() - Utc::now();
+
+        let diff_num_days = diff.num_days();
+
+        println!("expire in {} days", diff_num_days);
+        if cmd.before as i64 >= diff_num_days {
+            println!("{} days exceeded, execute the command", diff_num_days);
+            execute_external_cmd(cmd.cmd);
+        } else {
+            println!("launch the command {} days before expiration", cmd.before);
+        }
+    }
 
     Ok(())
 }
