@@ -172,7 +172,10 @@ fn try_launch_cmd(cmd: &Cmd, diff_num_days: i64) {
         println!("{} days exceeded, execute the command", diff_num_days);
         execute_external_cmd(cmd.cmd.to_string());
     } else {
-        println!("launch the command {} days before expiration", cmd.before);
+        println!(
+            "launch the arg script {} days before expiration",
+            cmd.before
+        );
     }
 }
 
@@ -191,9 +194,10 @@ fn main() -> Result<(), String> {
 
         let diff_num_days = diff.num_days();
 
-        println!("expire in {} days", diff_num_days);
+        println!("ca will expire in {} days", diff_num_days);
         try_launch_cmd(&cmd, diff_num_days);
         loop {
+            println!("next try in one day");
             thread::sleep(time::Duration::from_secs(one_day));
 
             try_launch_cmd(&cmd, diff_num_days);
