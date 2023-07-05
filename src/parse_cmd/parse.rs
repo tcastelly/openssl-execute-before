@@ -44,10 +44,20 @@ fn retrieve_ca(cur_args: Cmd, arg: String) -> Cmd {
 
 /// retrieve Cmd with all fields
 pub fn parse(args: Vec<String>) -> Result<Cmd, String> {
+    let min_param_err = Err("a minimum of one parameter is required".to_string());
+
+    if args.len() == 1 {
+        return min_param_err;
+    }
+
     let file_or_cmd = match args.as_slice() {
         [.., last] => last.to_string(),
-        _ => return Err("a minimum of one parameter is required".to_string()),
+        _ => return min_param_err,
     };
+
+    if file_or_cmd.contains('=') {
+        return Err("the last parameters has to be the file to execute".to_string());
+    }
 
     let cmd = args.into_iter().fold(Cmd::new(file_or_cmd), |cur, next| {
         let with_before = retrieve_before(cur.clone(), next.clone());
@@ -61,7 +71,7 @@ pub fn parse(args: Vec<String>) -> Result<Cmd, String> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parse_cmd::parse::{retrieve_before, retrieve_first_match};
+    use crate::parse_cmd::parse::{retrieve_before, retrieve_ca, retrieve_first_match};
     use crate::parse_cmd::Cmd;
     use regex::Regex;
 
@@ -101,5 +111,33 @@ mod tests {
         assert_eq!("ca", before.ca);
         assert_eq!("cmd", before.cmd);
         assert_eq!(0, before.before);
+    }
+
+    #[test]
+    fn should_retrieve_ca() {
+        let cmd = Cmd {
+            before: 0,
+            ca: "ca".to_string(),
+            cmd: "cmd".to_string(),
+        };
+
+        let ca = retrieve_ca(cmd, "ca=/cert/ca.pem".to_string());
+        assert_eq!("/cert/ca.pem", ca.ca);
+        assert_eq!("cmd", ca.cmd);
+        assert_eq!(0, ca.before);
+    }
+
+    #[test]
+    fn should_retrieve_empty_ca() {
+        let cmd = Cmd {
+            before: 0,
+            ca: "".to_string(),
+            cmd: "cmd".to_string(),
+        };
+
+        let ca = retrieve_ca(cmd, "".to_string());
+        assert_eq!("", ca.ca);
+        assert_eq!("cmd", ca.cmd);
+        assert_eq!(0, ca.before);
     }
 }

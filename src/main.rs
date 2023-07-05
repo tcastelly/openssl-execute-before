@@ -92,7 +92,7 @@ fn main() -> Result<(), String> {
     let output_str = get_expiration_cert(&cmd.ca);
 
     match &output_str[..] {
-        "" => Err("invalid certificate expiration date".to_string()),
+        "" => Err("invalid certificate".to_string()),
         output_str => {
             let dt = str_to_dt(output_str);
 
