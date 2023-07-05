@@ -1,4 +1,4 @@
-use crate::parse_cmd::Cmd;
+use crate::parse_usr_cmd::Cmd;
 use regex::Regex;
 
 fn retrieve_first_match(reg: &Regex, arg: String) -> Option<String> {
@@ -71,8 +71,8 @@ pub fn parse(args: Vec<String>) -> Result<Cmd, String> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parse_cmd::parse::{retrieve_before, retrieve_ca, retrieve_first_match};
-    use crate::parse_cmd::Cmd;
+    use crate::parse_usr_cmd::parse::{retrieve_before, retrieve_ca, retrieve_first_match};
+    use crate::parse_usr_cmd::Cmd;
     use regex::Regex;
 
     #[test]
@@ -88,13 +88,13 @@ mod tests {
         let cmd = Cmd {
             before: 0,
             ca: "ca".to_string(),
-            cmd: "cmd".to_string(),
+            cmd: "process".to_string(),
         };
 
         let before = retrieve_before(cmd, "before=2d".to_string());
 
         assert_eq!("ca", before.ca);
-        assert_eq!("cmd", before.cmd);
+        assert_eq!("process", before.cmd);
         assert_eq!(2, before.before);
     }
 
@@ -103,13 +103,13 @@ mod tests {
         let cmd = Cmd {
             before: 0,
             ca: "ca".to_string(),
-            cmd: "cmd".to_string(),
+            cmd: "process".to_string(),
         };
 
         let before = retrieve_before(cmd, "".to_string());
 
         assert_eq!("ca", before.ca);
-        assert_eq!("cmd", before.cmd);
+        assert_eq!("process", before.cmd);
         assert_eq!(0, before.before);
     }
 
@@ -118,12 +118,12 @@ mod tests {
         let cmd = Cmd {
             before: 0,
             ca: "ca".to_string(),
-            cmd: "cmd".to_string(),
+            cmd: "process".to_string(),
         };
 
         let ca = retrieve_ca(cmd, "ca=/cert/ca.pem".to_string());
         assert_eq!("/cert/ca.pem", ca.ca);
-        assert_eq!("cmd", ca.cmd);
+        assert_eq!("process", ca.cmd);
         assert_eq!(0, ca.before);
     }
 
@@ -132,12 +132,12 @@ mod tests {
         let cmd = Cmd {
             before: 0,
             ca: "".to_string(),
-            cmd: "cmd".to_string(),
+            cmd: "process".to_string(),
         };
 
         let ca = retrieve_ca(cmd, "".to_string());
         assert_eq!("", ca.ca);
-        assert_eq!("cmd", ca.cmd);
+        assert_eq!("process", ca.cmd);
         assert_eq!(0, ca.before);
     }
 }

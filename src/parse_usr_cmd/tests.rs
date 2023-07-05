@@ -1,6 +1,6 @@
 #[cfg(test)]
 pub mod tests_parse_cmd {
-    use crate::parse_cmd;
+    use crate::parse_usr_cmd;
 
     #[test]
     fn cmd_should_be_parsed() {
@@ -11,7 +11,7 @@ pub mod tests_parse_cmd {
             "./hello.sh".to_string(),
         ];
 
-        let cmd = parse_cmd::parse(args).unwrap();
+        let cmd = parse_usr_cmd::parse(args).unwrap();
 
         assert_eq!(10, cmd.before);
         assert_eq!("/cert/ca_certificate.pem", cmd.ca);
@@ -26,7 +26,7 @@ pub mod tests_parse_cmd {
             "ca=/cert/ca_certificate.pem".to_string(),
         ];
 
-        match parse_cmd::parse(args) {
+        match parse_usr_cmd::parse(args) {
             Ok(_) => Err("it should be impossible to parse correctly the command line".to_string()),
             Err(_) => Ok(()),
         }
@@ -36,7 +36,7 @@ pub mod tests_parse_cmd {
     fn should_not_parse_the_cmd() -> Result<(), String> {
         let args = vec!["openssl-execute".to_string()];
 
-        match parse_cmd::parse(args) {
+        match parse_usr_cmd::parse(args) {
             Ok(_) => Err("it should be impossible to parse correctly the command line".to_string()),
             Err(_) => Ok(()),
         }
