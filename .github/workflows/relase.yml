@@ -36,18 +36,19 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
+          target: x86_64-unknown-linux-musl
 
       - name: build the linux release
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: '--no-default-features --release'
+          args: '--target x86_64-unknown-linux-musl --release'
 
       - name: upload the artifacts
         uses: actions/upload-artifact@v2
         with:
           name: openssl-execute
-          path: target/release
+          path: target/x86_64-unknown-linux-musl/release
 
 
   release:
@@ -71,13 +72,13 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: openssl-execute
-          path: target/release
+          path: target/x86_64-unknown-linux-musl/release
 
       - name: create output dir
         run: mkdir _output
 
       - name: rename files
-        run: mv target/release/openssl-execute "./_output/openssl-execute"
+        run: mv target/x86_64-unknown-linux-musl/release/openssl-execute "./_output/openssl-execute"
         env:
           VERSION: '${{ steps.get_version.outputs.VERSION }}'
 
