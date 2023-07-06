@@ -1,0 +1,29 @@
+name: "publish"
+on:
+  push:
+    branches:
+      - release
+      - release-cli
+
+jobs:
+  rust_clippy_check_and_tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - uses: actions/checkout@v3
+
+      - name: run clippy
+        run: |
+          mkdir dist
+          cargo clippy --all-targets --all-features
+
+      - name: run tests
+        run: |
+          cargo test
+

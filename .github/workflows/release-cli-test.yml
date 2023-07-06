@@ -1,0 +1,95 @@
+name: "publish"
+on:
+  push:
+    branches:
+      - release
+      - release-cli
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Show GLIBC
+        run: ldd --version
+      - name: Checkout sources
+        uses: actions/checkout@v3
+
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - uses: actions/cache@v3
+        with:
+          path: ~/.cargo/registry
+          key: '${{ runner.os }}-cargo-registry-${{ hashFiles(''**/Cargo.lock'') }}'
+      - uses: actions/cache@v3
+        with:
+          path: ~/.cargo/git
+          key: '${{ runner.os }}-cargo-index-${{ hashFiles(''**/Cargo.lock'') }}'
+      - uses: actions/cache@v3
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - name: build the linux release
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: '--no-default-features --release'
+
+      - name: upload the artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: openssl-execute
+          path: target/release
+
+
+  release:
+    # enable release only on master
+    # if: github.ref == 'refs/heads/master'
+    needs:
+      - build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          lfs: true
+
+      - name: retrieve the version from Cargo.toml
+        id: get_version
+        working-directory: .
+        run: echo ::set-output name=VERSION::$(awk -F ' = ' '$1 ~ /version/ { gsub(/["]/, "", $2); printf("%s",$2) }' Cargo.toml)
+        shell: bash
+
+      - name: download linux build
+        uses: actions/download-artifact@v2
+        with:
+          name: openssl-execute
+          path: target/release
+
+      - name: create output dir
+        run: mkdir _output
+
+      - name: rename files
+        run: mv target/release/openssl-exec "./_output/openssl-exec_${VERSION}"
+        env:
+          VERSION: '${{ steps.get_version.outputs.VERSION }}'
+
+      - name: create a release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: 'app-v${{ steps.get_version.outputs.VERSION }}'
+          name: 'App v${{ steps.get_version.outputs.VERSION }}'
+          draft: false
+          prerelease: false
+          files: |
+            _output/**
+          token: '${{ secrets.GH_TOKEN }}'
+        env:
+          VERSION: '${{ steps.get_version.outputs.VERSION }}'
