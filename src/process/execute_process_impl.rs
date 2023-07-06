@@ -11,7 +11,7 @@ impl ProcessWrapper {
 }
 
 impl execute_process_io::Process for ProcessWrapper {
-    fn execute_script(&self, cmd_args: &parse_usr_cmd::Cmd) {
+    fn execute_script(&self, cmd_args: &parse_usr_cmd::Cmd) -> Result<(), String> {
         println!("execute arg script ...");
         let output = process::Command::new(&cmd_args.cmd)
             .output()
@@ -28,5 +28,7 @@ impl execute_process_io::Process for ProcessWrapper {
             println!("{}", output_str);
         }
         println!("arg script executed with success");
+
+        Ok(())
     }
 }
