@@ -76,11 +76,6 @@ jobs:
       - name: create output dir
         run: mkdir _output
 
-      - name: rename files
-        run: mv target/release/openssl-execute "./_output/openssl-execute_${VERSION}"
-        env:
-          VERSION: '${{ steps.get_version.outputs.VERSION }}'
-
       - name: create a release
         uses: softprops/action-gh-release@v1
         with:
