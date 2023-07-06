@@ -14,13 +14,14 @@ impl OpenSSLWrapper {
 }
 
 fn get_month_num(month: &str) -> Option<u32> {
+    let month_up = month.to_uppercase();
     [
-        "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+        "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC",
     ]
     .iter()
     .enumerate()
     .find_map(|(i, m)| {
-        if m == &month {
+        if m == &month_up {
             Some((i + 1) as u32)
         } else {
             None
@@ -30,7 +31,7 @@ fn get_month_num(month: &str) -> Option<u32> {
 
 fn str_to_dt(dt: &str) -> LocalResult<DateTime<Utc>> {
     let re = Regex::new(
-        r"^notAfter=([A-Z][a-z]{2}) ([0-9 ]{1,2}) ([0-9]{2}):([0-9]{2}):([0-9]{2}) ([0-9]{4}) GMT$",
+        r"^notAfter=((?i)[a-z]{3}) ([0-9 ]{1,2}) ([0-9]{2}):([0-9]{2}):([0-9]{2}) ([0-9]{4}) GMT$",
     )
     .unwrap();
 
@@ -91,4 +92,78 @@ impl execute_io::OpenSSHCmd for OpenSSLWrapper {
 
         Box::new(Res::new(output_str.trim().to_string()))
     }
+}
+
+#[test]
+fn should_resolve_month_index() {
+    let m = get_month_num("jan").unwrap();
+    assert_eq!(m, 1);
+
+    let m = get_month_num("feb").unwrap();
+    assert_eq!(m, 2);
+
+    let m = get_month_num("mar").unwrap();
+    assert_eq!(m, 3);
+
+    let m = get_month_num("apr").unwrap();
+    assert_eq!(m, 4);
+
+    let m = get_month_num("may").unwrap();
+    assert_eq!(m, 5);
+
+    let m = get_month_num("jun").unwrap();
+    assert_eq!(m, 6);
+
+    let m = get_month_num("jul").unwrap();
+    assert_eq!(m, 7);
+
+    let m = get_month_num("aug").unwrap();
+    assert_eq!(m, 8);
+
+    let m = get_month_num("sep").unwrap();
+    assert_eq!(m, 9);
+
+    let m = get_month_num("oct").unwrap();
+    assert_eq!(m, 10);
+
+    let m = get_month_num("nov").unwrap();
+    assert_eq!(m, 11);
+
+    let m = get_month_num("dec").unwrap();
+    assert_eq!(m, 12);
+}
+
+#[test]
+fn should_parse_openssl_res() {
+    let d = str_to_dt("notAfter=Jul  2 09:30:45 2024 GMT").unwrap();
+    assert_eq!(d.year(), 2024);
+    assert_eq!(d.month(), 7);
+    assert_eq!(d.day(), 2);
+    assert_eq!(d.hour(), 9);
+    assert_eq!(d.minute(), 30);
+    assert_eq!(d.second(), 45);
+
+    let d = str_to_dt("notAfter=Jul 22 09:30:45 2024 GMT").unwrap();
+    assert_eq!(d.year(), 2024);
+    assert_eq!(d.month(), 7);
+    assert_eq!(d.day(), 22);
+    assert_eq!(d.hour(), 9);
+    assert_eq!(d.minute(), 30);
+    assert_eq!(d.second(), 45);
+
+    let d = str_to_dt("notAfter=jul 22 09:30:45 2024 GMT").unwrap();
+    assert_eq!(d.year(), 2024);
+    assert_eq!(d.month(), 7);
+    assert_eq!(d.day(), 22);
+    assert_eq!(d.hour(), 9);
+    assert_eq!(d.minute(), 30);
+    assert_eq!(d.second(), 45);
+
+    let d = str_to_dt("notAfter=JUL 22 09:30:45 2024 GMT").unwrap();
+    assert_eq!(d.year(), 2024);
+    assert_eq!(d.month(), 7);
+    assert_eq!(d.day(), 22);
+    assert_eq!(d.hour(), 9);
+    assert_eq!(d.minute(), 30);
+    assert_eq!(d.second(), 45);
 }
